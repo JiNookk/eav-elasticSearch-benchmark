@@ -3,7 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CustomFieldModule } from './customField.module';
+import { ContactModule } from './contact.module';
 import { CustomFieldDefinitionEntity } from './infrastructure/persistence/typeorm/entity/customFieldDefinition.entity';
+import { ContactEntity } from './infrastructure/persistence/typeorm/entity/contact.entity';
+import { CustomFieldValueEntity } from './infrastructure/persistence/typeorm/entity/customFieldValue.entity';
 
 @Module({
   imports: [
@@ -14,11 +17,16 @@ import { CustomFieldDefinitionEntity } from './infrastructure/persistence/typeor
       username: process.env.DB_USERNAME || 'app',
       password: process.env.DB_PASSWORD || 'app123',
       database: process.env.DB_DATABASE || 'custom_fields',
-      entities: [CustomFieldDefinitionEntity],
+      entities: [
+        CustomFieldDefinitionEntity,
+        ContactEntity,
+        CustomFieldValueEntity,
+      ],
       synchronize: true, // 개발용, 프로덕션에서는 false
       logging: process.env.NODE_ENV !== 'production',
     }),
     CustomFieldModule,
+    ContactModule,
   ],
   controllers: [AppController],
   providers: [AppService],

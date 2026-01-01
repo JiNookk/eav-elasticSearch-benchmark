@@ -3,9 +3,8 @@ import { FieldType } from './fieldType.vo';
 
 export interface CreateFieldValueArgs {
   id: string;
-  contactId: string;
   fieldDefinition: CustomFieldDefinition;
-  value: string | number | null;
+  value: string | number | Date;
 }
 
 /**
@@ -16,12 +15,10 @@ export interface CreateFieldValueArgs {
 export class CustomFieldValue {
   private constructor(
     private readonly _id: string,
-    private readonly _contactId: string,
-    private readonly _fieldDefinitionId: string,
-    private readonly _fieldType: FieldType,
+    private readonly _fieldDefinition: CustomFieldDefinition,
     private _valueText: string | null,
     private _valueNumber: number | null,
-    private _valueDate: string | null,
+    private _valueDate: Date | null,
     private _valueSelect: string | null,
   ) {}
 
@@ -30,10 +27,11 @@ export class CustomFieldValue {
    * @throws 값이 필드 정의에 맞지 않는 경우
    */
   static create(args: CreateFieldValueArgs): CustomFieldValue {
-    const { id, contactId, fieldDefinition, value } = args;
+    const { id, fieldDefinition, value } = args;
 
     // 필드 정의로 값 검증
-    const validation = fieldDefinition.validateValue(value);
+    const validationValue = value instanceof Date ? value.toISOString().split('T')[0] : value;
+    const validation = fieldDefinition.validateValue(validationValue);
     if (!validation.valid) {
       throw new Error(validation.error);
     }
@@ -41,7 +39,7 @@ export class CustomFieldValue {
     // 타입별 값 분배
     let valueText: string | null = null;
     let valueNumber: number | null = null;
-    let valueDate: string | null = null;
+    let valueDate: Date | null = null;
     let valueSelect: string | null = null;
 
     if (value !== null && value !== undefined) {
@@ -53,7 +51,7 @@ export class CustomFieldValue {
           valueNumber = value as number;
           break;
         case FieldType.DATE:
-          valueDate = value as string;
+          valueDate = value instanceof Date ? value : new Date(value as string);
           break;
         case FieldType.SELECT:
           valueSelect = value as string;
@@ -63,9 +61,7 @@ export class CustomFieldValue {
 
     return new CustomFieldValue(
       id,
-      contactId,
-      fieldDefinition.id,
-      fieldDefinition.fieldType,
+      fieldDefinition,
       valueText,
       valueNumber,
       valueDate,
@@ -77,11 +73,10 @@ export class CustomFieldValue {
    * 값 업데이트
    * @throws 값이 필드 정의에 맞지 않는 경우
    */
-  updateValue(
-    fieldDefinition: CustomFieldDefinition,
-    newValue: string | number | null,
-  ): void {
-    const validation = fieldDefinition.validateValue(newValue);
+  updateValue(newValue: string | number | Date): void {
+    const validationValue =
+      newValue instanceof Date ? newValue.toISOString().split('T')[0] : newValue;
+    const validation = this._fieldDefinition.validateValue(validationValue);
     if (!validation.valid) {
       throw new Error(validation.error);
     }
@@ -94,7 +89,7 @@ export class CustomFieldValue {
 
     // 새 값 설정
     if (newValue !== null && newValue !== undefined) {
-      switch (fieldDefinition.fieldType) {
+      switch (this._fieldDefinition.fieldType) {
         case FieldType.TEXT:
           this._valueText = newValue as string;
           break;
@@ -102,7 +97,8 @@ export class CustomFieldValue {
           this._valueNumber = newValue as number;
           break;
         case FieldType.DATE:
-          this._valueDate = newValue as string;
+          this._valueDate =
+            newValue instanceof Date ? newValue : new Date(newValue as string);
           break;
         case FieldType.SELECT:
           this._valueSelect = newValue as string;
@@ -114,8 +110,8 @@ export class CustomFieldValue {
   /**
    * 현재 값 반환 (타입에 따라)
    */
-  getValue(): string | number | null {
-    switch (this._fieldType) {
+  getValue(): string | number | Date | null {
+    switch (this._fieldDefinition.fieldType) {
       case FieldType.TEXT:
         return this._valueText;
       case FieldType.NUMBER:
@@ -134,15 +130,11 @@ export class CustomFieldValue {
     return this._id;
   }
 
-  get contactId(): string {
-    return this._contactId;
-  }
-
-  get fieldDefinitionId(): string {
-    return this._fieldDefinitionId;
+  get fieldDefinition(): CustomFieldDefinition {
+    return this._fieldDefinition;
   }
 
   get fieldType(): FieldType {
-    return this._fieldType;
+    return this._fieldDefinition.fieldType;
   }
 }

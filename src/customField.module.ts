@@ -16,6 +16,6 @@ import { CUSTOM_FIELD_DEFINITION_REPOSITORY } from './application/customField/po
       useClass: CustomFieldDefinitionRepository,
     },
   ],
-  exports: [CustomFieldDefinitionService],
+  exports: [CustomFieldDefinitionService, CUSTOM_FIELD_DEFINITION_REPOSITORY],
 })
 export class CustomFieldModule {}

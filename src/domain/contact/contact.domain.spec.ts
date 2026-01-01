@@ -3,22 +3,30 @@ import { CustomFieldDefinition } from '../customField/customFieldDefinition.doma
 import { FieldType } from '../customField/fieldType.vo';
 
 describe('Contact', () => {
+  const now = new Date('2024-01-01T00:00:00Z');
+
   // 테스트용 필드 정의 헬퍼
-  const createTextField = () =>
-    CustomFieldDefinition.create({
+  const createTextField = () => {
+    const field = CustomFieldDefinition.create({
       id: 'def-1',
       name: '메모',
       apiName: 'memo__c',
       fieldType: FieldType.TEXT,
     });
+    field.activate();
+    return field;
+  };
 
-  const createNumberField = () =>
-    CustomFieldDefinition.create({
+  const createNumberField = () => {
+    const field = CustomFieldDefinition.create({
       id: 'def-2',
       name: '나이',
       apiName: 'age__c',
       fieldType: FieldType.NUMBER,
     });
+    field.activate();
+    return field;
+  };
 
   const createInactiveField = () => {
     const field = CustomFieldDefinition.create({
@@ -38,6 +46,8 @@ describe('Contact', () => {
         id: 'contact-1',
         email: 'user@example.com',
         name: '홍길동',
+        createdAt: now,
+        updatedAt: now,
       };
 
       // When
@@ -47,6 +57,8 @@ describe('Contact', () => {
       expect(contact.id).toBe('contact-1');
       expect(contact.email).toBe('user@example.com');
       expect(contact.name).toBe('홍길동');
+      expect(contact.createdAt).toEqual(now);
+      expect(contact.updatedAt).toEqual(now);
     });
 
     it('이름 앞뒤 공백은 자동으로 제거된다', () => {
@@ -55,6 +67,8 @@ describe('Contact', () => {
         id: 'contact-1',
         email: 'user@example.com',
         name: '  홍길동  ',
+        createdAt: now,
+        updatedAt: now,
       };
 
       // When
@@ -70,6 +84,8 @@ describe('Contact', () => {
         id: 'contact-1',
         email: 'invalid-email',
         name: '홍길동',
+        createdAt: now,
+        updatedAt: now,
       };
 
       // When & Then
@@ -84,6 +100,8 @@ describe('Contact', () => {
         id: 'contact-1',
         email: 'user@example.com',
         name: '',
+        createdAt: now,
+        updatedAt: now,
       };
 
       // When & Then
@@ -96,6 +114,8 @@ describe('Contact', () => {
         id: 'contact-1',
         email: 'user@example.com',
         name: '   ',
+        createdAt: now,
+        updatedAt: now,
       };
 
       // When & Then
@@ -110,6 +130,8 @@ describe('Contact', () => {
         id: 'contact-1',
         email: 'user@example.com',
         name: '홍길동',
+        createdAt: now,
+        updatedAt: now,
       });
 
       // When
@@ -125,6 +147,8 @@ describe('Contact', () => {
         id: 'contact-1',
         email: 'user@example.com',
         name: '홍길동',
+        createdAt: now,
+        updatedAt: now,
       });
 
       // When & Then
@@ -139,11 +163,13 @@ describe('Contact', () => {
         id: 'contact-1',
         email: 'user@example.com',
         name: '홍길동',
+        createdAt: now,
+        updatedAt: now,
       });
       const fieldDef = createTextField();
 
       // When
-      contact.setCustomFieldValue('val-1', fieldDef, '메모 내용');
+      contact.setCustomFieldValue(fieldDef, '메모 내용', 'val-1');
 
       // Then
       const value = contact.getCustomFieldValue(fieldDef.id);
@@ -157,13 +183,15 @@ describe('Contact', () => {
         id: 'contact-1',
         email: 'user@example.com',
         name: '홍길동',
+        createdAt: now,
+        updatedAt: now,
       });
       const textField = createTextField();
       const numberField = createNumberField();
 
       // When
-      contact.setCustomFieldValue('val-1', textField, '메모 내용');
-      contact.setCustomFieldValue('val-2', numberField, 25);
+      contact.setCustomFieldValue(textField, '메모 내용', 'val-1');
+      contact.setCustomFieldValue(numberField, 25, 'val-2');
 
       // Then
       const allValues = contact.getAllCustomFieldValues();
@@ -176,12 +204,14 @@ describe('Contact', () => {
         id: 'contact-1',
         email: 'user@example.com',
         name: '홍길동',
+        createdAt: now,
+        updatedAt: now,
       });
       const fieldDef = createTextField();
-      contact.setCustomFieldValue('val-1', fieldDef, '원래 값');
+      contact.setCustomFieldValue(fieldDef, '원래 값', 'val-1');
 
       // When
-      contact.setCustomFieldValue('val-1', fieldDef, '새로운 값');
+      contact.setCustomFieldValue(fieldDef, '새로운 값', 'val-1');
 
       // Then
       const value = contact.getCustomFieldValue(fieldDef.id);
@@ -194,12 +224,14 @@ describe('Contact', () => {
         id: 'contact-1',
         email: 'user@example.com',
         name: '홍길동',
+        createdAt: now,
+        updatedAt: now,
       });
       const inactiveField = createInactiveField();
 
       // When & Then
       expect(() =>
-        contact.setCustomFieldValue('val-1', inactiveField, '값'),
+        contact.setCustomFieldValue(inactiveField, '값', 'val-1'),
       ).toThrow('비활성화된 필드에는 값을 설정할 수 없습니다');
     });
 
@@ -209,6 +241,8 @@ describe('Contact', () => {
         id: 'contact-1',
         email: 'user@example.com',
         name: '홍길동',
+        createdAt: now,
+        updatedAt: now,
       });
 
       // When

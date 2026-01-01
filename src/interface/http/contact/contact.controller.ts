@@ -6,10 +6,12 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { ContactService } from '../../../application/contact/contact.service';
+import { ContactSearchService } from '../../../application/contact/contact-search.service';
 import type { CreateContactDto } from '../../../application/contact/dto/createContact.dto';
 import type { UpdateContactDto } from '../../../application/contact/dto/updateContact.dto';
 import type { Contact } from '../../../domain/contact/contact.domain';
@@ -19,7 +21,49 @@ import type { Contact } from '../../../domain/contact/contact.domain';
  */
 @Controller('api/v1/contacts')
 export class ContactController {
-  constructor(private readonly contactService: ContactService) {}
+  constructor(
+    private readonly contactService: ContactService,
+    private readonly contactSearchService: ContactSearchService,
+  ) {}
+
+  /**
+   * Contact 검색 (MySQL/ES 성능 비교용)
+   * GET /api/v1/contacts/search
+   */
+  @Get('search')
+  async search(
+    @Query('dataSource') dataSource: 'mysql' | 'es' = 'es',
+    @Query('page') page = '1',
+    @Query('pageSize') pageSize = '20',
+    @Query('search') search?: string,
+    @Query('sort') sortJson?: string,
+    @Query('filter') filterJson?: string,
+    @Query('groupBy') groupBy?: string,
+  ) {
+    type SortItem = { field: string; direction: 'asc' | 'desc' };
+    type FilterItem = {
+      field: string;
+      operator: 'eq' | 'contains' | 'gt' | 'lt' | 'gte' | 'lte' | 'between';
+      value: string | number | [number, number];
+    };
+
+    const sort: SortItem[] | undefined = sortJson
+      ? (JSON.parse(sortJson) as SortItem[])
+      : undefined;
+    const filter: FilterItem[] | undefined = filterJson
+      ? (JSON.parse(filterJson) as FilterItem[])
+      : undefined;
+
+    return this.contactSearchService.search({
+      dataSource,
+      page: parseInt(page, 10),
+      pageSize: parseInt(pageSize, 10),
+      search,
+      sort,
+      filter,
+      groupBy,
+    });
+  }
 
   /**
    * Contact 생성

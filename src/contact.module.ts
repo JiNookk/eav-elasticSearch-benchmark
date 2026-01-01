@@ -5,10 +5,12 @@ import { CustomFieldValueEntity } from './infrastructure/persistence/typeorm/ent
 import { CustomFieldDefinitionEntity } from './infrastructure/persistence/typeorm/entity/customFieldDefinition.entity';
 import { ContactRepository } from './infrastructure/persistence/typeorm/repository/contact.repository';
 import { ContactService } from './application/contact/contact.service';
+import { ContactSearchService } from './application/contact/contact-search.service';
 import { ContactController } from './interface/http/contact/contact.controller';
 import { SearchController } from './interface/http/search/search.controller';
 import { CONTACT_REPOSITORY } from './application/contact/port/contact.repository.port';
 import { CustomFieldModule } from './customField.module';
+import { ElasticsearchModule } from './infrastructure/elasticsearch/elasticsearch.module';
 
 @Module({
   imports: [
@@ -18,15 +20,17 @@ import { CustomFieldModule } from './customField.module';
       CustomFieldDefinitionEntity,
     ]),
     CustomFieldModule,
+    ElasticsearchModule,
   ],
   controllers: [SearchController, ContactController],
   providers: [
     ContactService,
+    ContactSearchService,
     {
       provide: CONTACT_REPOSITORY,
       useClass: ContactRepository,
     },
   ],
-  exports: [ContactService],
+  exports: [ContactService, ContactSearchService],
 })
 export class ContactModule {}

@@ -8,9 +8,10 @@ import { AdminModule } from './admin.module';
 import { ElasticsearchModule } from './infrastructure/elasticsearch/elasticsearch.module';
 import { QueueModule } from './infrastructure/queue/queue.module';
 import { OutboxModule } from './infrastructure/outbox/outbox.module';
-import { CustomFieldDefinitionEntity } from './infrastructure/persistence/typeorm/entity/customFieldDefinition.entity';
+import { AccountEntity } from './infrastructure/persistence/typeorm/entity/account.entity';
 import { ContactEntity } from './infrastructure/persistence/typeorm/entity/contact.entity';
-import { CustomFieldValueEntity } from './infrastructure/persistence/typeorm/entity/customFieldValue.entity';
+import { FieldDefinitionEntity } from './infrastructure/persistence/typeorm/entity/fieldDefinition.entity';
+import { FieldValueEntity } from './infrastructure/persistence/typeorm/entity/fieldValue.entity';
 import { OutboxEntity } from './infrastructure/persistence/typeorm/entity/outbox.entity';
 
 @Module({
@@ -23,9 +24,10 @@ import { OutboxEntity } from './infrastructure/persistence/typeorm/entity/outbox
       password: process.env.DB_PASSWORD || 'app123',
       database: process.env.DB_DATABASE || 'custom_fields',
       entities: [
-        CustomFieldDefinitionEntity,
+        AccountEntity,
         ContactEntity,
-        CustomFieldValueEntity,
+        FieldDefinitionEntity,
+        FieldValueEntity,
         OutboxEntity,
       ],
       synchronize: true, // 개발용, 프로덕션에서는 false

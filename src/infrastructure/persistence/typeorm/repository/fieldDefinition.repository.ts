@@ -2,18 +2,19 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CustomFieldDefinition } from '../../../../domain/customField/customFieldDefinition.domain';
-import { CustomFieldDefinitionRepositoryPort } from '../../../../application/customField/port/customFieldDefinition.repository.port';
-import { CustomFieldDefinitionEntity } from '../entity/customFieldDefinition.entity';
+import type { CustomFieldDefinitionRepositoryPort } from '../../../../application/customField/port/customFieldDefinition.repository.port';
+import { FieldDefinitionEntity } from '../entity/fieldDefinition.entity';
 import { CustomFieldDefinitionMapper } from '../mapper/customFieldDefinition.mapper';
 
 /**
- * CustomFieldDefinition Repository 구현
+ * FieldDefinition Repository 구현
+ * Salesforce 스타일 FieldDefinitionEntity 사용
  */
 @Injectable()
-export class CustomFieldDefinitionRepository implements CustomFieldDefinitionRepositoryPort {
+export class FieldDefinitionRepository implements CustomFieldDefinitionRepositoryPort {
   constructor(
-    @InjectRepository(CustomFieldDefinitionEntity)
-    private readonly repository: Repository<CustomFieldDefinitionEntity>,
+    @InjectRepository(FieldDefinitionEntity)
+    private readonly repository: Repository<FieldDefinitionEntity>,
   ) {}
 
   async findById(id: string): Promise<CustomFieldDefinition | null> {
@@ -28,14 +29,18 @@ export class CustomFieldDefinitionRepository implements CustomFieldDefinitionRep
     return CustomFieldDefinitionMapper.toDomain(entity);
   }
 
-  async findAllActive(): Promise<CustomFieldDefinition[]> {
+  async findAll(): Promise<CustomFieldDefinition[]> {
     const entities = await this.repository.find({
-      where: { isActive: true },
-      order: { displayOrder: 'ASC', createdAt: 'ASC' },
+      order: { createdAt: 'ASC' },
     });
     return entities.map((entity) =>
       CustomFieldDefinitionMapper.toDomain(entity),
     );
+  }
+
+  async findAllActive(): Promise<CustomFieldDefinition[]> {
+    // 새 엔티티에는 isActive 필드가 없으므로 전체 반환
+    return this.findAll();
   }
 
   async save(definition: CustomFieldDefinition): Promise<void> {

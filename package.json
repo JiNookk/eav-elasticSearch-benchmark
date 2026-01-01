@@ -18,7 +18,15 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "seed": "npx ts-node scripts/seed.ts",
+    "seed:small": "npx ts-node scripts/seed.ts --contacts=10000",
+    "seed:medium": "npx ts-node scripts/seed.ts --contacts=100000",
+    "seed:large": "npx ts-node scripts/seed.ts --contacts=1000000",
+    "seed:es-only": "npx ts-node scripts/seed.ts --es-only",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:reset": "docker compose down -v && docker compose up -d"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^8.11.0",
@@ -41,6 +49,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
+    "@faker-js/faker": "^10.1.0",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",

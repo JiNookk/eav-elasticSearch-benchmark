@@ -37,8 +37,11 @@ export interface SearchContactsResponse {
   total: number;
   page: number;
   pageSize: number;
+  totalPages: number;
   queryTime: number; // ms
   dataSource: 'mysql' | 'es';
+  // 그루핑 결과 (groupBy 사용 시)
+  groups?: { key: string; count: number }[];
 }
 
 export interface ContactResponse {

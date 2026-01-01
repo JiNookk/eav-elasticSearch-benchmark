@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReindexService } from './application/reindex/reindex.service';
 import { ReindexController } from './interface/http/admin/reindex.controller';
+import { AccountEntity } from './infrastructure/persistence/typeorm/entity/account.entity';
 import { ContactEntity } from './infrastructure/persistence/typeorm/entity/contact.entity';
-import { CustomFieldValueEntity } from './infrastructure/persistence/typeorm/entity/customFieldValue.entity';
-import { CustomFieldDefinitionEntity } from './infrastructure/persistence/typeorm/entity/customFieldDefinition.entity';
+import { FieldValueEntity } from './infrastructure/persistence/typeorm/entity/fieldValue.entity';
+import { FieldDefinitionEntity } from './infrastructure/persistence/typeorm/entity/fieldDefinition.entity';
 import { ContactRepository } from './infrastructure/persistence/typeorm/repository/contact.repository';
 import { CONTACT_REPOSITORY } from './application/contact/port/contact.repository.port';
 import { CustomFieldModule } from './customField.module';
@@ -17,9 +18,10 @@ import { CustomFieldModule } from './customField.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
+      AccountEntity,
       ContactEntity,
-      CustomFieldValueEntity,
-      CustomFieldDefinitionEntity,
+      FieldValueEntity,
+      FieldDefinitionEntity,
     ]),
     CustomFieldModule,
   ],

@@ -5,29 +5,30 @@ import type { ContactRepositoryPort } from '../../../../application/contact/port
 import { Contact } from '../../../../domain/contact/contact.domain';
 import { CustomFieldDefinition } from '../../../../domain/customField/customFieldDefinition.domain';
 import { ContactEntity } from '../entity/contact.entity';
-import { CustomFieldValueEntity } from '../entity/customFieldValue.entity';
-import { CustomFieldDefinitionEntity } from '../entity/customFieldDefinition.entity';
+import { FieldValueEntity } from '../entity/fieldValue.entity';
+import { FieldDefinitionEntity } from '../entity/fieldDefinition.entity';
 import { ContactMapper } from '../mapper/contact.mapper';
 import { CustomFieldDefinitionMapper } from '../mapper/customFieldDefinition.mapper';
 
 /**
  * Contact TypeORM Repository 구현체
+ * Salesforce 스타일 엔티티 사용 (fieldValues, FieldDefinitionEntity)
  */
 @Injectable()
 export class ContactRepository implements ContactRepositoryPort {
   constructor(
     @InjectRepository(ContactEntity)
     private readonly contactRepo: Repository<ContactEntity>,
-    @InjectRepository(CustomFieldValueEntity)
-    private readonly valueRepo: Repository<CustomFieldValueEntity>,
-    @InjectRepository(CustomFieldDefinitionEntity)
-    private readonly definitionRepo: Repository<CustomFieldDefinitionEntity>,
+    @InjectRepository(FieldValueEntity)
+    private readonly valueRepo: Repository<FieldValueEntity>,
+    @InjectRepository(FieldDefinitionEntity)
+    private readonly definitionRepo: Repository<FieldDefinitionEntity>,
   ) {}
 
   async findById(id: string): Promise<Contact | null> {
     const entity = await this.contactRepo.findOne({
       where: { id },
-      relations: ['customFieldValues'],
+      relations: ['fieldValues'],
     });
 
     if (!entity) {
@@ -41,7 +42,7 @@ export class ContactRepository implements ContactRepositoryPort {
   async findByEmail(email: string): Promise<Contact | null> {
     const entity = await this.contactRepo.findOne({
       where: { email },
-      relations: ['customFieldValues'],
+      relations: ['fieldValues'],
     });
 
     if (!entity) {
@@ -54,15 +55,15 @@ export class ContactRepository implements ContactRepositoryPort {
 
   async findAll(): Promise<Contact[]> {
     const entities = await this.contactRepo.find({
-      relations: ['customFieldValues'],
+      relations: ['fieldValues'],
       order: { createdAt: 'DESC' },
     });
 
     // 모든 필드 정의 한번에 로드
     const allDefinitionIds = new Set<string>();
     for (const entity of entities) {
-      for (const value of entity.customFieldValues || []) {
-        allDefinitionIds.add(value.fieldDefinitionId);
+      for (const value of entity.fieldValues || []) {
+        allDefinitionIds.add(value.fieldId);
       }
     }
 
@@ -86,27 +87,25 @@ export class ContactRepository implements ContactRepositoryPort {
   async save(contact: Contact): Promise<void> {
     const entity = ContactMapper.toEntity(contact);
 
-    // 기존 CustomFieldValues 삭제 후 새로 저장 (upsert 대신 단순 처리)
-    await this.valueRepo.delete({ contactId: contact.id });
+    // 기존 FieldValues 삭제 후 새로 저장 (upsert 대신 단순 처리)
+    await this.valueRepo.delete({ recordId: contact.id });
 
-    // Contact와 CustomFieldValues 저장
+    // Contact와 FieldValues 저장
     await this.contactRepo.save(entity);
   }
 
   async delete(id: string): Promise<void> {
-    // CASCADE로 CustomFieldValues도 함께 삭제됨
+    // CASCADE로 FieldValues도 함께 삭제됨
     await this.contactRepo.delete({ id });
   }
 
   /**
-   * Contact의 CustomFieldValue에 해당하는 FieldDefinition들 로드
+   * Contact의 FieldValue에 해당하는 FieldDefinition들 로드
    */
   private async loadFieldDefinitions(
     entity: ContactEntity,
   ): Promise<Map<string, CustomFieldDefinition>> {
-    const definitionIds = (entity.customFieldValues || []).map(
-      (v) => v.fieldDefinitionId,
-    );
+    const definitionIds = (entity.fieldValues || []).map((v) => v.fieldId);
 
     if (definitionIds.length === 0) {
       return new Map();

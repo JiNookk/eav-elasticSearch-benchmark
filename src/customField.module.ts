@@ -1,19 +1,19 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { CustomFieldDefinitionEntity } from './infrastructure/persistence/typeorm/entity/customFieldDefinition.entity';
-import { CustomFieldDefinitionRepository } from './infrastructure/persistence/typeorm/repository/customFieldDefinition.repository';
+import { FieldDefinitionEntity } from './infrastructure/persistence/typeorm/entity/fieldDefinition.entity';
+import { FieldDefinitionRepository } from './infrastructure/persistence/typeorm/repository/fieldDefinition.repository';
 import { CustomFieldDefinitionService } from './application/customField/customFieldDefinition.service';
 import { CustomFieldController } from './interface/http/customField/customField.controller';
 import { CUSTOM_FIELD_DEFINITION_REPOSITORY } from './application/customField/port/customFieldDefinition.repository.port';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CustomFieldDefinitionEntity])],
+  imports: [TypeOrmModule.forFeature([FieldDefinitionEntity])],
   controllers: [CustomFieldController],
   providers: [
     CustomFieldDefinitionService,
     {
       provide: CUSTOM_FIELD_DEFINITION_REPOSITORY,
-      useClass: CustomFieldDefinitionRepository,
+      useClass: FieldDefinitionRepository,
     },
   ],
   exports: [CustomFieldDefinitionService, CUSTOM_FIELD_DEFINITION_REPOSITORY],

@@ -201,6 +201,119 @@ export class ElasticsearchService implements OnModuleInit {
   }
 
   /**
+   * Contact 고급 검색 (다양한 필터 연산자 지원)
+   */
+  async searchContactsAdvanced(
+    query: AdvancedSearchQuery,
+  ): Promise<SearchResult> {
+    const { keyword, filterConditions, sort, page = 1, size = 20 } = query;
+
+    const must: any[] = [];
+    const filter: any[] = [];
+
+    // 키워드 검색
+    if (keyword) {
+      must.push({
+        multi_match: {
+          query: keyword,
+          fields: ['email', 'name'],
+          type: 'best_fields',
+          fuzziness: 'AUTO',
+        },
+      });
+    }
+
+    // 필터 조건 (다양한 연산자 지원)
+    if (filterConditions) {
+      for (const cond of filterConditions) {
+        const fieldPath = cond.field.endsWith('__c')
+          ? `customFields.${cond.field}`
+          : cond.field;
+
+        // text 필드는 .keyword 사용 (정확한 매칭용)
+        const keywordFieldPath = `${fieldPath}.keyword`;
+
+        switch (cond.operator) {
+          case 'eq':
+            filter.push({ term: { [keywordFieldPath]: cond.value } });
+            break;
+          case 'contains':
+            filter.push({
+              wildcard: { [keywordFieldPath]: `*${String(cond.value)}*` },
+            });
+            break;
+          case 'gt':
+            filter.push({ range: { [fieldPath]: { gt: cond.value } } });
+            break;
+          case 'lt':
+            filter.push({ range: { [fieldPath]: { lt: cond.value } } });
+            break;
+          case 'gte':
+            filter.push({ range: { [fieldPath]: { gte: cond.value } } });
+            break;
+          case 'lte':
+            filter.push({ range: { [fieldPath]: { lte: cond.value } } });
+            break;
+          case 'between':
+            if (Array.isArray(cond.value) && cond.value.length === 2) {
+              filter.push({
+                range: {
+                  [fieldPath]: { gte: cond.value[0], lte: cond.value[1] },
+                },
+              });
+            }
+            break;
+        }
+      }
+    }
+
+    // 정렬
+    const sortArray: any[] = [];
+    if (sort) {
+      for (const [field, order] of Object.entries(sort)) {
+        if (field.endsWith('__c')) {
+          sortArray.push({ [`customFields.${field}.keyword`]: order });
+        } else if (field === 'createdAt' || field === 'updatedAt') {
+          sortArray.push({ [field]: order });
+        } else {
+          sortArray.push({ [`${field}.keyword`]: order });
+        }
+      }
+    } else {
+      sortArray.push({ createdAt: 'desc' });
+    }
+
+    const from = (page - 1) * size;
+
+    const response = await this.client.search<ContactDocument>({
+      index: CONTACTS_INDEX,
+      query: {
+        bool: {
+          must: must.length > 0 ? must : [{ match_all: {} }],
+          filter,
+        },
+      },
+      sort: sortArray,
+      from,
+      size,
+    });
+
+    const hits = response.hits.hits;
+    const total =
+      typeof response.hits.total === 'number'
+        ? response.hits.total
+        : (response.hits.total?.value ?? 0);
+
+    return {
+      items: hits.map((hit) => hit._source as ContactDocument),
+      total,
+      page,
+      size,
+      totalPages: Math.ceil(total / size),
+    };
+  }
+
+  /**
    * 집계 (그루핑)
    */
   async aggregateContacts(
@@ -264,6 +377,26 @@ export interface ContactDocument {
 export interface SearchQuery {
   keyword?: string;
   filters?: Record<string, string | number>;
+  sort?: Record<string, 'asc' | 'desc'>;
+  page?: number;
+  size?: number;
+}
+
+/**
+ * 고급 필터 조건
+ */
+export interface EsFilterCondition {
+  field: string;
+  operator: 'eq' | 'contains' | 'gt' | 'lt' | 'gte' | 'lte' | 'between';
+  value: string | number | [number, number];
+}
+
+/**
+ * 고급 검색 쿼리 (다양한 필터 연산자 지원)
+ */
+export interface AdvancedSearchQuery {
+  keyword?: string;
+  filterConditions?: EsFilterCondition[];
   sort?: Record<string, 'asc' | 'desc'>;
   page?: number;
   size?: number;

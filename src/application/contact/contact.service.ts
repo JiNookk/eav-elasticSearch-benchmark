@@ -22,7 +22,7 @@ import {
   type ContactPayload,
 } from '../../infrastructure/queue/es-sync.types';
 import { ContactEntity } from '../../infrastructure/persistence/typeorm/entity/contact.entity';
-import { CustomFieldValueEntity } from '../../infrastructure/persistence/typeorm/entity/customFieldValue.entity';
+import { FieldValueEntity } from '../../infrastructure/persistence/typeorm/entity/fieldValue.entity';
 import {
   OutboxEntity,
   type OutboxEventType,
@@ -156,8 +156,8 @@ export class ContactService {
       // Contact Entity 변환
       const contactEntity = ContactMapper.toEntity(contact);
 
-      // 기존 CustomFieldValues 삭제
-      await manager.delete(CustomFieldValueEntity, { contactId: contact.id });
+      // 기존 FieldValues 삭제
+      await manager.delete(FieldValueEntity, { recordId: contact.id });
 
       // Contact + CustomFieldValues 저장
       await manager.save(ContactEntity, contactEntity);

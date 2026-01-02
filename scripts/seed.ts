@@ -362,12 +362,13 @@ async function createEsIndex(esClient: Client, resume: boolean): Promise<void> {
       number_of_shards: 1,
       number_of_replicas: 0,
       refresh_interval: '-1', // 벌크 인덱싱 중 리프레시 비활성화
+      'index.max_ngram_diff': 8,
       analysis: {
         tokenizer: {
           ngram_tokenizer: {
             type: 'ngram' as const,
             min_gram: 2,
-            max_gram: 3,
+            max_gram: 10,
             token_chars: ['letter', 'digit'] as const,
           },
         },
@@ -386,46 +387,92 @@ async function createEsIndex(esClient: Client, resume: boolean): Promise<void> {
         name: {
           type: 'keyword',
           fields: {
-            search: { type: 'text', analyzer: 'ngram_analyzer' },
+            search: {
+              type: 'text',
+              analyzer: 'ngram_analyzer',
+              search_analyzer: 'standard',
+            },
           },
         },
         email: {
           type: 'keyword',
           fields: {
-            search: { type: 'text', analyzer: 'ngram_analyzer' },
+            search: {
+              type: 'text',
+              analyzer: 'ngram_analyzer',
+              search_analyzer: 'standard',
+            },
           },
         },
         createdAt: { type: 'date' },
         updatedAt: { type: 'date' },
         customFields: {
+          type: 'object',
+          dynamic: 'true',
           properties: {
             department__c: {
               type: 'keyword',
-              fields: { search: { type: 'text', analyzer: 'ngram_analyzer' } },
+              fields: {
+                search: {
+                  type: 'text',
+                  analyzer: 'ngram_analyzer',
+                  search_analyzer: 'standard',
+                },
+              },
             },
             job_title__c: {
               type: 'keyword',
-              fields: { search: { type: 'text', analyzer: 'ngram_analyzer' } },
+              fields: {
+                search: {
+                  type: 'text',
+                  analyzer: 'ngram_analyzer',
+                  search_analyzer: 'standard',
+                },
+              },
             },
             annual_revenue__c: { type: 'long' },
             contract_start__c: { type: 'date' },
             lead_source__c: {
               type: 'keyword',
-              fields: { search: { type: 'text', analyzer: 'ngram_analyzer' } },
+              fields: {
+                search: {
+                  type: 'text',
+                  analyzer: 'ngram_analyzer',
+                  search_analyzer: 'standard',
+                },
+              },
             },
             last_contact_date__c: { type: 'date' },
             score__c: { type: 'integer' },
             notes__c: {
               type: 'keyword',
-              fields: { search: { type: 'text', analyzer: 'ngram_analyzer' } },
+              fields: {
+                search: {
+                  type: 'text',
+                  analyzer: 'ngram_analyzer',
+                  search_analyzer: 'standard',
+                },
+              },
             },
             region__c: {
               type: 'keyword',
-              fields: { search: { type: 'text', analyzer: 'ngram_analyzer' } },
+              fields: {
+                search: {
+                  type: 'text',
+                  analyzer: 'ngram_analyzer',
+                  search_analyzer: 'standard',
+                },
+              },
             },
             tier__c: {
               type: 'keyword',
-              fields: { search: { type: 'text', analyzer: 'ngram_analyzer' } },
+              fields: {
+                search: {
+                  type: 'text',
+                  analyzer: 'ngram_analyzer',
+                  search_analyzer: 'standard',
+                },
+              },
             },
           },
         },

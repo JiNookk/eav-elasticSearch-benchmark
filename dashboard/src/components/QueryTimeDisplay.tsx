@@ -1,16 +1,16 @@
 interface QueryTimeDisplayProps {
-  queryTime: number;
-  dataSource: 'mysql' | 'es';
-  total: number;
+  queryTime?: number;
+  dataSource?: 'mysql' | 'es';
+  total?: number;
 }
 
 /**
  * 쿼리 실행 시간 표시
  */
 export function QueryTimeDisplay({
-  queryTime,
-  dataSource,
-  total,
+  queryTime = 0,
+  dataSource = 'es',
+  total = 0,
 }: QueryTimeDisplayProps) {
   const isSlowQuery = queryTime > 1000;
   const isMysql = dataSource === 'mysql';

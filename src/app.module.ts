@@ -31,7 +31,7 @@ import { OutboxEntity } from './infrastructure/persistence/typeorm/entity/outbox
         OutboxEntity,
       ],
       synchronize: false, // 개발용, 프로덕션에서는 false
-      logging: process.env.NODE_ENV !== 'production',
+      logging: false,
     }),
     ElasticsearchModule,
     QueueModule,

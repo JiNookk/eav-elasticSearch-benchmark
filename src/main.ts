@@ -1,16 +1,28 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
+import type { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const logger = new Logger('HTTP');
 
-  // CORS 설정 (프론트엔드 개발용)
-  app.enableCors({
-    origin: ['http://localhost:3001', 'http://localhost:3002'],
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    credentials: true,
+  // 요청 로깅 미들웨어
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const { method, originalUrl } = req;
+    const start = Date.now();
+
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      const { statusCode } = res;
+      logger.log(`${method} ${originalUrl} ${statusCode} - ${duration}ms`);
+    });
+
+    next();
   });
+
+  // CORS 전체 허용
+  app.enableCors();
 
   // 전역 ValidationPipe 설정
   app.useGlobalPipes(

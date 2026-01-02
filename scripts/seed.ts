@@ -11,10 +11,11 @@
  *   npx ts-node scripts/seed.ts [options]
  *
  * 옵션:
- *   --contacts=N     Contact 수 (기본: 1000000)
+ *   --contacts=N     Contact 수 (기본: 500000)
  *   --batch=N        배치 크기 (기본: 5000)
  *   --skip-es        ES 동기화 스킵
  *   --es-only        ES 동기화만 실행 (MySQL 시딩 스킵)
+ *   --resume         ES 동기화 이어서 실행 (인덱스 삭제 안함)
  */
 
 import { faker } from '@faker-js/faker/locale/ko';
@@ -26,7 +27,7 @@ import { v4 as uuidv4 } from 'uuid';
 interface FieldDefRow {
   id: string;
   api_name: string;
-  field_type: string;
+  data_type: string;
 }
 
 interface CountRow {
@@ -47,7 +48,7 @@ interface ContactRow {
 const CONFIG = {
   CONTACTS_COUNT: parseInt(
     process.argv.find((a) => a.startsWith('--contacts='))?.split('=')[1] ||
-      '1000000',
+      '500000',
     10,
   ),
   BATCH_SIZE: parseInt(
@@ -56,20 +57,21 @@ const CONFIG = {
   ),
   SKIP_ES: process.argv.includes('--skip-es'),
   ES_ONLY: process.argv.includes('--es-only'),
+  RESUME: process.argv.includes('--resume'),
 };
 
-// 커스텀 필드 정의 (현재 DB 구조에 맞춤)
-// field_type: TEXT, NUMBER, DATE, SELECT (ENUM)
+// 커스텀 필드 정의 (엔티티 구조에 맞춤)
+// data_type: text, number, date, select, multi_select
 const FIELD_DEFINITIONS: Array<{
-  name: string;
+  label: string;
   apiName: string;
-  fieldType: 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT';
+  dataType: 'text' | 'number' | 'date' | 'select' | 'multi_select';
   options: string[] | null;
 }> = [
   {
-    name: 'Department',
+    label: 'Department',
     apiName: 'department__c',
-    fieldType: 'SELECT',
+    dataType: 'select',
     options: [
       'Sales',
       'Marketing',
@@ -80,57 +82,57 @@ const FIELD_DEFINITIONS: Array<{
     ],
   },
   {
-    name: 'Job Title',
+    label: 'Job Title',
     apiName: 'job_title__c',
-    fieldType: 'SELECT',
+    dataType: 'select',
     options: ['Intern', 'Associate', 'Manager', 'Director', 'VP', 'C-Level'],
   },
   {
-    name: 'Annual Revenue',
+    label: 'Annual Revenue',
     apiName: 'annual_revenue__c',
-    fieldType: 'NUMBER',
+    dataType: 'number',
     options: null,
   },
   {
-    name: 'Contract Start',
+    label: 'Contract Start',
     apiName: 'contract_start__c',
-    fieldType: 'DATE',
+    dataType: 'date',
     options: null,
   },
   {
-    name: 'Lead Source',
+    label: 'Lead Source',
     apiName: 'lead_source__c',
-    fieldType: 'SELECT',
+    dataType: 'select',
     options: ['Web', 'Referral', 'Event', 'Cold Call', 'Partner'],
   },
   {
-    name: 'Last Contact Date',
+    label: 'Last Contact Date',
     apiName: 'last_contact_date__c',
-    fieldType: 'DATE',
+    dataType: 'date',
     options: null,
   },
   {
-    name: 'Score',
+    label: 'Score',
     apiName: 'score__c',
-    fieldType: 'NUMBER',
+    dataType: 'number',
     options: null,
   },
   {
-    name: 'Notes',
+    label: 'Notes',
     apiName: 'notes__c',
-    fieldType: 'TEXT',
+    dataType: 'text',
     options: null,
   },
   {
-    name: 'Region',
+    label: 'Region',
     apiName: 'region__c',
-    fieldType: 'SELECT',
+    dataType: 'select',
     options: ['APAC', 'EMEA', 'Americas'],
   },
   {
-    name: 'Tier',
+    label: 'Tier',
     apiName: 'tier__c',
-    fieldType: 'SELECT',
+    dataType: 'select',
     options: ['BRONZE', 'SILVER', 'GOLD', 'PLATINUM'],
   },
 ];
@@ -182,71 +184,50 @@ async function seedFieldDefinitions(
     const id = uuidv4();
 
     await dataSource.query(
-      `INSERT INTO custom_field_definitions (id, name, api_name, field_type, options, is_required, is_active, display_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE name = VALUES(name), field_type = VALUES(field_type), options = VALUES(options)`,
+      `INSERT INTO custom_field_definitions (id, label, api_name, data_type, options, is_required)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE label = VALUES(label), data_type = VALUES(data_type), options = VALUES(options)`,
       [
         id,
-        def.name,
+        def.label,
         def.apiName,
-        def.fieldType,
+        def.dataType,
         def.options ? JSON.stringify(def.options) : null,
         false,
-        true,
-        i,
       ],
     );
   }
 
   // 기존 필드 ID 조회 (이미 존재하는 경우)
   const existing: FieldDefRow[] = await dataSource.query(
-    'SELECT id, api_name, field_type FROM custom_field_definitions',
+    'SELECT id, api_name, data_type FROM custom_field_definitions',
   );
   for (const row of existing) {
-    fieldIdMap.set(row.api_name, { id: row.id, fieldType: row.field_type });
+    fieldIdMap.set(row.api_name, { id: row.id, fieldType: row.data_type });
   }
 
   console.log(`  ✅ ${FIELD_DEFINITIONS.length}개 필드 정의 완료`);
   return fieldIdMap;
 }
 
-// 랜덤 커스텀 필드 값 생성 (타입별 컬럼용)
-function generateFieldValue(def: (typeof FIELD_DEFINITIONS)[0]): {
-  valueText: string | null;
-  valueNumber: number | null;
-  valueDate: string | null;
-  valueSelect: string | null;
-} {
-  const result = {
-    valueText: null as string | null,
-    valueNumber: null as number | null,
-    valueDate: null as string | null,
-    valueSelect: null as string | null,
-  };
-
-  switch (def.fieldType) {
-    case 'SELECT':
-      result.valueSelect = faker.helpers.arrayElement(def.options!);
-      break;
-    case 'NUMBER':
+// 랜덤 커스텀 필드 값 생성 (단일 value 컬럼용)
+function generateFieldValue(def: (typeof FIELD_DEFINITIONS)[0]): string | null {
+  switch (def.dataType) {
+    case 'select':
+    case 'multi_select':
+      return faker.helpers.arrayElement(def.options!);
+    case 'number':
       if (def.apiName === 'score__c') {
-        result.valueNumber = faker.number.int({ min: 0, max: 100 });
-      } else {
-        result.valueNumber = faker.number.int({ min: 10000, max: 100000000 });
+        return String(faker.number.int({ min: 0, max: 100 }));
       }
-      break;
-    case 'DATE':
-      result.valueDate = faker.date
-        .past({ years: 3 })
-        .toISOString()
-        .split('T')[0];
-      break;
-    case 'TEXT':
-      result.valueText = faker.lorem.sentence();
-      break;
+      return String(faker.number.int({ min: 10000, max: 100000000 }));
+    case 'date':
+      return faker.date.past({ years: 3 }).toISOString().split('T')[0];
+    case 'text':
+      return faker.lorem.sentence();
+    default:
+      return null;
   }
-
-  return result;
 }
 
 // Contact + Custom Field Values 배치 시딩
@@ -281,12 +262,9 @@ async function seedContacts(
 
     const fieldValues: Array<{
       id: string;
-      contactId: string;
-      fieldDefinitionId: string;
-      valueText: string | null;
-      valueNumber: number | null;
-      valueDate: string | null;
-      valueSelect: string | null;
+      recordId: string;
+      fieldId: string;
+      value: string | null;
     }> = [];
 
     for (let i = 0; i < batchSize; i++) {
@@ -307,13 +285,13 @@ async function seedContacts(
         const fieldInfo = fieldIdMap.get(def.apiName);
         if (!fieldInfo) continue;
 
-        const values = generateFieldValue(def);
+        const value = generateFieldValue(def);
 
         fieldValues.push({
           id: uuidv4(),
-          contactId,
-          fieldDefinitionId: fieldInfo.id,
-          ...values,
+          recordId: contactId,
+          fieldId: fieldInfo.id,
+          value,
         });
       }
     }
@@ -344,20 +322,15 @@ async function seedContacts(
       fvOffset += FIELD_VALUES_CHUNK
     ) {
       const chunk = fieldValues.slice(fvOffset, fvOffset + FIELD_VALUES_CHUNK);
-      const fvPlaceholders = chunk
-        .map(() => '(?, ?, ?, ?, ?, ?, ?)')
-        .join(', ');
+      const fvPlaceholders = chunk.map(() => '(?, ?, ?, ?)').join(', ');
       const fvValues = chunk.flatMap((fv) => [
         fv.id,
-        fv.contactId,
-        fv.fieldDefinitionId,
-        fv.valueText,
-        fv.valueNumber,
-        fv.valueDate,
-        fv.valueSelect,
+        fv.recordId,
+        fv.fieldId,
+        fv.value,
       ]);
       await dataSource.query(
-        `INSERT INTO custom_field_values (id, contact_id, field_definition_id, value_text, value_number, value_date, value_select) VALUES ${fvPlaceholders}`,
+        `INSERT INTO custom_field_values (id, record_id, field_id, value) VALUES ${fvPlaceholders}`,
         fvValues,
       );
     }
@@ -370,11 +343,15 @@ async function seedContacts(
 }
 
 // ES 인덱스 생성
-async function createEsIndex(esClient: Client): Promise<void> {
+async function createEsIndex(esClient: Client, resume: boolean): Promise<void> {
   console.log('\n🔍 ES 인덱스 생성...');
 
   const indexExists = await esClient.indices.exists({ index: 'contacts' });
   if (indexExists) {
+    if (resume) {
+      console.log('  ⏩ Resume 모드: 기존 인덱스 유지');
+      return;
+    }
     console.log('  ⚠️  기존 인덱스 삭제 중...');
     await esClient.indices.delete({ index: 'contacts' });
   }
@@ -439,9 +416,8 @@ async function createEsIndex(esClient: Client): Promise<void> {
             last_contact_date__c: { type: 'date' },
             score__c: { type: 'integer' },
             notes__c: {
-              type: 'text',
-              analyzer: 'ngram_analyzer',
-              fields: { keyword: { type: 'keyword', ignore_above: 256 } },
+              type: 'keyword',
+              fields: { search: { type: 'text', analyzer: 'ngram_analyzer' } },
             },
             region__c: {
               type: 'keyword',
@@ -464,6 +440,7 @@ async function createEsIndex(esClient: Client): Promise<void> {
 async function syncToEs(
   dataSource: DataSource,
   esClient: Client,
+  resume: boolean,
 ): Promise<void> {
   console.log(`\n🔄 ES 동기화 시작...`);
 
@@ -473,13 +450,31 @@ async function syncToEs(
   );
   const totalContacts = parseInt(countResult[0].cnt, 10);
 
-  console.log(`  총 ${totalContacts.toLocaleString()}건 동기화 예정`);
+  // Resume 모드: 이미 인덱싱된 문서 수만큼 건너뛰기
+  let startOffset = 0;
+  if (resume) {
+    try {
+      const esCount = await esClient.count({ index: 'contacts' });
+      startOffset = esCount.count;
+      console.log(`  ⏩ Resume 모드: ${startOffset.toLocaleString()}건 건너뛰기`);
+    } catch {
+      console.log('  ⚠️  ES 인덱스가 없어 처음부터 시작');
+    }
+  }
+
+  const remaining = totalContacts - startOffset;
+  console.log(`  총 ${remaining.toLocaleString()}건 동기화 예정`);
+
+  if (remaining <= 0) {
+    console.log('  ✅ 이미 모든 문서가 동기화됨');
+    return;
+  }
 
   const startTime = Date.now();
-  const ES_BATCH = 2000;
+  const ES_BATCH = 5000;
 
-  for (let offset = 0; offset < totalContacts; offset += ES_BATCH) {
-    // Contact + 커스텀 필드 값 조회 (현재 테이블 구조)
+  for (let offset = startOffset; offset < totalContacts; offset += ES_BATCH) {
+    // Contact + 커스텀 필드 값 조회 (새 테이블 구조)
     const contacts: ContactRow[] = await dataSource.query(
       `
       SELECT
@@ -492,17 +487,14 @@ async function syncToEs(
         GROUP_CONCAT(
           CONCAT(
             cfd.api_name, ':',
-            cfd.field_type, ':',
-            COALESCE(cfv.value_text, ''), '|',
-            COALESCE(cfv.value_number, ''), '|',
-            COALESCE(cfv.value_date, ''), '|',
-            COALESCE(cfv.value_select, '')
+            cfd.data_type, ':',
+            COALESCE(cfv.value, '')
           )
           SEPARATOR '||'
         ) as custom_fields_raw
       FROM contacts c
-      LEFT JOIN custom_field_values cfv ON cfv.contact_id = c.id
-      LEFT JOIN custom_field_definitions cfd ON cfd.id = cfv.field_definition_id
+      LEFT JOIN custom_field_values cfv ON cfv.record_id = c.id
+      LEFT JOIN custom_field_definitions cfd ON cfd.id = cfv.field_id
       GROUP BY c.id
       LIMIT ?, ?
     `,
@@ -518,34 +510,21 @@ async function syncToEs(
       if (contact.custom_fields_raw) {
         const entries = contact.custom_fields_raw.split('||');
         for (const entry of entries) {
-          // 형식: apiName:fieldType:valueText|valueNumber|valueDate|valueSelect
+          // 형식: apiName:dataType:value
           const colonIdx = entry.indexOf(':');
           const secondColonIdx = entry.indexOf(':', colonIdx + 1);
           if (colonIdx > 0 && secondColonIdx > colonIdx) {
             const apiName = entry.substring(0, colonIdx);
-            const fieldType = entry.substring(colonIdx + 1, secondColonIdx);
-            const valuesStr = entry.substring(secondColonIdx + 1);
-            const [valueText, valueNumber, valueDate, valueSelect] =
-              valuesStr.split('|');
+            const dataType = entry.substring(colonIdx + 1, secondColonIdx);
+            const rawValue = entry.substring(secondColonIdx + 1);
 
-            let value: string | number | null = null;
-            switch (fieldType) {
-              case 'TEXT':
-                value = valueText || null;
-                break;
-              case 'NUMBER':
-                value = valueNumber ? parseFloat(valueNumber) : null;
-                break;
-              case 'DATE':
-                value = valueDate || null;
-                break;
-              case 'SELECT':
-                value = valueSelect || null;
-                break;
-            }
-
-            if (value !== null) {
-              customFields[apiName] = value;
+            if (rawValue) {
+              // number 타입은 숫자로 변환
+              if (dataType === 'number') {
+                customFields[apiName] = parseFloat(rawValue);
+              } else {
+                customFields[apiName] = rawValue;
+              }
             }
           }
         }
@@ -591,6 +570,7 @@ async function main(): Promise<void> {
   console.log(`   - Batch Size: ${CONFIG.BATCH_SIZE.toLocaleString()}`);
   console.log(`   - Skip ES: ${CONFIG.SKIP_ES}`);
   console.log(`   - ES Only: ${CONFIG.ES_ONLY}`);
+  console.log(`   - Resume: ${CONFIG.RESUME}`);
 
   const dataSource = createDataSource();
   const esClient = createEsClient();
@@ -600,12 +580,16 @@ async function main(): Promise<void> {
     console.log('\n✅ MySQL 연결 성공');
 
     if (!CONFIG.ES_ONLY) {
-      // 기존 데이터 삭제
+      // 기존 데이터 삭제 (테이블이 없으면 무시)
       console.log('\n🗑️  기존 데이터 삭제...');
-      await dataSource.query('DELETE FROM custom_field_values');
-      await dataSource.query('DELETE FROM contacts');
-      await dataSource.query('DELETE FROM custom_field_definitions');
-      console.log('  ✅ 기존 데이터 삭제 완료');
+      try {
+        await dataSource.query('DELETE FROM custom_field_values');
+        await dataSource.query('DELETE FROM contacts');
+        await dataSource.query('DELETE FROM custom_field_definitions');
+        console.log('  ✅ 기존 데이터 삭제 완료');
+      } catch {
+        console.log('  ⚠️  테이블이 없거나 이미 비어있음 (무시)');
+      }
 
       // 필드 정의 시딩
       const fieldIdMap = await seedFieldDefinitions(dataSource);
@@ -616,8 +600,8 @@ async function main(): Promise<void> {
 
     if (!CONFIG.SKIP_ES) {
       // ES 인덱스 생성 및 동기화
-      await createEsIndex(esClient);
-      await syncToEs(dataSource, esClient);
+      await createEsIndex(esClient, CONFIG.RESUME);
+      await syncToEs(dataSource, esClient, CONFIG.RESUME);
     }
 
     // 결과 요약

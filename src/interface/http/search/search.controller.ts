@@ -6,9 +6,10 @@ import {
 } from '../../../infrastructure/elasticsearch/elasticsearch.service';
 
 /**
- * 검색 API 컨트롤러
+ * ES 직접 검색 API 컨트롤러 (ES 전용)
+ * 대시보드는 ContactController.search()를 사용
  */
-@Controller('api/v1/contacts/search')
+@Controller('api/v1/es/contacts')
 export class SearchController {
   constructor(private readonly elasticsearchService: ElasticsearchService) {}
 

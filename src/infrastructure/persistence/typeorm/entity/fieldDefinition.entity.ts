@@ -4,7 +4,7 @@ import { Entity, Column, PrimaryColumn, CreateDateColumn } from 'typeorm';
  * Field Definition (커스텀 필드 정의) TypeORM Entity
  * Salesforce Custom Field Definition과 동일한 구조
  */
-@Entity('field_definitions')
+@Entity('custom_field_definitions')
 export class FieldDefinitionEntity {
   @PrimaryColumn({ type: 'varchar', length: 36 })
   id: string;

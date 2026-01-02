@@ -16,7 +16,7 @@ import { FieldDefinitionEntity } from './fieldDefinition.entity';
  * EAV 패턴으로 커스텀 필드 값 저장
  * Salesforce Custom Field Value와 동일한 구조
  */
-@Entity('field_values')
+@Entity('custom_field_values')
 @Index('idx_field_values_record', ['recordId'])
 @Index('idx_field_values_field', ['fieldId'])
 @Index('idx_field_values_record_field', ['recordId', 'fieldId'], {

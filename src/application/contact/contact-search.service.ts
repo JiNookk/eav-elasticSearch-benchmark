@@ -85,7 +85,7 @@ export class ContactSearchService {
     }
 
     return {
-      data: result.items.map((item) => ({
+      data: result.data.map((item) => ({
         id: item.id,
         email: item.email,
         name: item.name,
@@ -334,8 +334,8 @@ export class ContactSearchService {
         c.created_at as createdAt, c.updated_at as updatedAt
         ${pivotSelects.length > 0 ? ', ' + pivotSelects.join(', ') : ''}
       FROM contacts c
-      LEFT JOIN field_values fv ON fv.record_id = c.id
-      LEFT JOIN field_definitions fd ON fd.id = fv.field_id
+      LEFT JOIN custom_field_values fv ON fv.record_id = c.id
+      LEFT JOIN custom_field_definitions fd ON fd.id = fv.field_id
       ${whereClause}
       GROUP BY c.id
       ${havingClause}
@@ -347,8 +347,8 @@ export class ContactSearchService {
       SELECT COUNT(*) as cnt FROM (
         SELECT c.id
         FROM contacts c
-        LEFT JOIN field_values fv ON fv.record_id = c.id
-        LEFT JOIN field_definitions fd ON fd.id = fv.field_id
+        LEFT JOIN custom_field_values fv ON fv.record_id = c.id
+        LEFT JOIN custom_field_definitions fd ON fd.id = fv.field_id
         ${whereClause}
         GROUP BY c.id
         ${havingClause}
@@ -394,8 +394,8 @@ export class ContactSearchService {
           ${groupByExpr} as groupKey,
           COUNT(DISTINCT c.id) as cnt
         FROM contacts c
-        LEFT JOIN field_values fv ON fv.record_id = c.id
-        LEFT JOIN field_definitions fd ON fd.id = fv.field_id
+        LEFT JOIN custom_field_values fv ON fv.record_id = c.id
+        LEFT JOIN custom_field_definitions fd ON fd.id = fv.field_id
         ${whereClause}
         GROUP BY ${groupByExpr}
         ORDER BY cnt DESC

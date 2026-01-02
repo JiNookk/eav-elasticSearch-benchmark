@@ -124,46 +124,44 @@ export class ElasticsearchService implements OnModuleInit {
     const must: any[] = [];
     const filter: any[] = [];
 
-    // 키워드 검색 (email, name에서 검색, date 필드 제외)
+    // 키워드 검색 (.search 서브필드 사용 - ngram 분석기 적용)
     if (keyword) {
       must.push({
         multi_match: {
           query: keyword,
-          fields: ['email', 'name'],
+          fields: ['email.search', 'name.search'],
           type: 'best_fields',
-          fuzziness: 'AUTO',
         },
       });
     }
 
-    // 필터 조건
+    // 필터 조건 (email, name은 이미 keyword 타입)
     if (filters) {
       for (const [field, value] of Object.entries(filters)) {
         if (field.endsWith('__c')) {
-          // 커스텀 필드 필터 (text 필드는 .keyword 사용)
+          // 커스텀 필드 필터
           filter.push({
-            term: { [`customFields.${field}.keyword`]: value },
+            term: { [`customFields.${field}`]: value },
           });
         } else {
           // 기본 필드 필터
           filter.push({
-            term: { [`${field}.keyword`]: value },
+            term: { [field]: value },
           });
         }
       }
     }
 
-    // 정렬
+    // 정렬 (email, name은 이미 keyword 타입)
     const sortArray: any[] = [];
     if (sort) {
       for (const [field, order] of Object.entries(sort)) {
         if (field.endsWith('__c')) {
-          // 커스텀 필드 정렬 (text 필드는 .keyword 사용)
-          sortArray.push({ [`customFields.${field}.keyword`]: order });
-        } else if (field === 'createdAt' || field === 'updatedAt') {
-          sortArray.push({ [field]: order });
+          // 커스텀 필드 정렬
+          sortArray.push({ [`customFields.${field}`]: order });
         } else {
-          sortArray.push({ [`${field}.keyword`]: order });
+          // 기본 필드 (email, name, createdAt, updatedAt)
+          sortArray.push({ [field]: order });
         }
       }
     } else {
@@ -174,6 +172,7 @@ export class ElasticsearchService implements OnModuleInit {
 
     const response = await this.client.search<ContactDocument>({
       index: CONTACTS_INDEX,
+      track_total_hits: true, // 정확한 total count
       query: {
         bool: {
           must: must.length > 0 ? must : [{ match_all: {} }],
@@ -192,10 +191,10 @@ export class ElasticsearchService implements OnModuleInit {
         : (response.hits.total?.value ?? 0);
 
     return {
-      items: hits.map((hit) => hit._source as ContactDocument),
+      data: hits.map((hit) => hit._source as ContactDocument),
       total,
       page,
-      size,
+      pageSize: size,
       totalPages: Math.ceil(total / size),
     };
   }
@@ -211,35 +210,31 @@ export class ElasticsearchService implements OnModuleInit {
     const must: any[] = [];
     const filter: any[] = [];
 
-    // 키워드 검색
+    // 키워드 검색 (.search 서브필드 사용 - ngram 분석기 적용)
     if (keyword) {
       must.push({
         multi_match: {
           query: keyword,
-          fields: ['email', 'name'],
+          fields: ['email.search', 'name.search'],
           type: 'best_fields',
-          fuzziness: 'AUTO',
         },
       });
     }
 
-    // 필터 조건 (다양한 연산자 지원)
+    // 필터 조건 (다양한 연산자 지원, email/name은 이미 keyword 타입)
     if (filterConditions) {
       for (const cond of filterConditions) {
         const fieldPath = cond.field.endsWith('__c')
           ? `customFields.${cond.field}`
           : cond.field;
 
-        // text 필드는 .keyword 사용 (정확한 매칭용)
-        const keywordFieldPath = `${fieldPath}.keyword`;
-
         switch (cond.operator) {
           case 'eq':
-            filter.push({ term: { [keywordFieldPath]: cond.value } });
+            filter.push({ term: { [fieldPath]: cond.value } });
             break;
           case 'contains':
             filter.push({
-              wildcard: { [keywordFieldPath]: `*${String(cond.value)}*` },
+              wildcard: { [fieldPath]: `*${String(cond.value)}*` },
             });
             break;
           case 'gt':
@@ -267,16 +262,16 @@ export class ElasticsearchService implements OnModuleInit {
       }
     }
 
-    // 정렬
+    // 정렬 (email, name은 이미 keyword 타입)
     const sortArray: any[] = [];
     if (sort) {
       for (const [field, order] of Object.entries(sort)) {
         if (field.endsWith('__c')) {
-          sortArray.push({ [`customFields.${field}.keyword`]: order });
-        } else if (field === 'createdAt' || field === 'updatedAt') {
-          sortArray.push({ [field]: order });
+          // 커스텀 필드 정렬
+          sortArray.push({ [`customFields.${field}`]: order });
         } else {
-          sortArray.push({ [`${field}.keyword`]: order });
+          // 기본 필드 (email, name, createdAt, updatedAt)
+          sortArray.push({ [field]: order });
         }
       }
     } else {
@@ -287,6 +282,7 @@ export class ElasticsearchService implements OnModuleInit {
 
     const response = await this.client.search<ContactDocument>({
       index: CONTACTS_INDEX,
+      track_total_hits: true, // 정확한 total count
       query: {
         bool: {
           must: must.length > 0 ? must : [{ match_all: {} }],
@@ -305,10 +301,10 @@ export class ElasticsearchService implements OnModuleInit {
         : (response.hits.total?.value ?? 0);
 
     return {
-      items: hits.map((hit) => hit._source as ContactDocument),
+      data: hits.map((hit) => hit._source as ContactDocument),
       total,
       page,
-      size,
+      pageSize: size,
       totalPages: Math.ceil(total / size),
     };
   }
@@ -406,10 +402,10 @@ export interface AdvancedSearchQuery {
  * 검색 결과
  */
 export interface SearchResult {
-  items: ContactDocument[];
+  data: ContactDocument[];
   total: number;
   page: number;
-  size: number;
+  pageSize: number;
   totalPages: number;
 }
 

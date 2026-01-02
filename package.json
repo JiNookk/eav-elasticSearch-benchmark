@@ -22,7 +22,7 @@
     "seed": "npx ts-node scripts/seed.ts",
     "seed:small": "npx ts-node scripts/seed.ts --contacts=10000",
     "seed:medium": "npx ts-node scripts/seed.ts --contacts=100000",
-    "seed:large": "npx ts-node scripts/seed.ts --contacts=1000000",
+    "seed:large": "npx ts-node scripts/seed.ts --contacts=500000",
     "seed:es-only": "npx ts-node scripts/seed.ts --es-only",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",

@@ -14,7 +14,6 @@ import { ContactService } from '../../../application/contact/contact.service';
 import { ContactSearchService } from '../../../application/contact/contact-search.service';
 import type { CreateContactDto } from '../../../application/contact/dto/createContact.dto';
 import type { UpdateContactDto } from '../../../application/contact/dto/updateContact.dto';
-import type { Contact } from '../../../domain/contact/contact.domain';
 
 /**
  * Contact REST API 컨트롤러
@@ -73,7 +72,7 @@ export class ContactController {
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() dto: CreateContactDto) {
     const contact = await this.contactService.create(dto);
-    return this.toResponse(contact);
+    return contact.toPayload();
   }
 
   // findAll() 삭제됨 - 500K 레코드를 한번에 로드하면 메모리 크래시 발생
@@ -86,7 +85,7 @@ export class ContactController {
   @Get(':id')
   async findById(@Param('id') id: string) {
     const contact = await this.contactService.findById(id);
-    return this.toResponse(contact);
+    return contact.toPayload();
   }
 
   /**
@@ -96,7 +95,7 @@ export class ContactController {
   @Patch(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateContactDto) {
     const contact = await this.contactService.update(id, dto);
-    return this.toResponse(contact);
+    return contact.toPayload();
   }
 
   /**
@@ -107,25 +106,5 @@ export class ContactController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(@Param('id') id: string) {
     await this.contactService.delete(id);
-  }
-
-  /**
-   * Domain -> Response DTO 변환
-   */
-  private toResponse(contact: Contact) {
-    // 커스텀 필드 값을 { apiName: value } 형태로 변환
-    const customFields: Record<string, string | number | Date | null> = {};
-    for (const fieldValue of contact.customFieldValues) {
-      customFields[fieldValue.fieldDefinition.apiName] = fieldValue.getValue();
-    }
-
-    return {
-      id: contact.id,
-      email: contact.email,
-      name: contact.name,
-      customFields,
-      createdAt: contact.createdAt,
-      updatedAt: contact.updatedAt,
-    };
   }
 }

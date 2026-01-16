@@ -5,6 +5,21 @@ import { ELASTICSEARCH_CLIENT } from './elasticsearch.constants';
 const CONTACTS_INDEX = 'contacts';
 
 /**
+ * 텍스트 검색 가능한 필드 목록
+ * 새 커스텀 필드 추가 시 이 목록에 추가
+ */
+const SEARCHABLE_TEXT_FIELDS = [
+  'email.search',
+  'name.search',
+  'customFields.job_title__c.search',
+  'customFields.department__c.search',
+  'customFields.region__c.search',
+  'customFields.tier__c.search',
+  'customFields.lead_source__c.search',
+  'customFields.notes__c.search',
+] as const;
+
+/**
  * Elasticsearch 서비스
  * - 인덱스 관리
  * - 문서 CRUD
@@ -217,21 +232,11 @@ export class ElasticsearchService implements OnModuleInit {
     const filter: EsFilterClause[] = [];
 
     // 키워드 검색 (.search 서브필드 사용 - ngram 분석기 적용)
-    // 텍스트 검색 가능한 필드만 명시 (날짜/숫자 필드 제외)
     if (keyword) {
       must.push({
         multi_match: {
           query: keyword,
-          fields: [
-            'email.search',
-            'name.search',
-            'customFields.job_title__c.search',
-            'customFields.department__c.search',
-            'customFields.region__c.search',
-            'customFields.tier__c.search',
-            'customFields.lead_source__c.search',
-            'customFields.notes__c.search',
-          ],
+          fields: [...SEARCHABLE_TEXT_FIELDS],
           type: 'best_fields',
         },
       });
@@ -315,21 +320,11 @@ export class ElasticsearchService implements OnModuleInit {
     const filter: EsFilterClause[] = [];
 
     // 키워드 검색 (.search 서브필드 사용 - ngram 분석기 적용)
-    // 텍스트 검색 가능한 필드만 명시 (날짜/숫자 필드 제외)
     if (keyword) {
       must.push({
         multi_match: {
           query: keyword,
-          fields: [
-            'email.search',
-            'name.search',
-            'customFields.job_title__c.search',
-            'customFields.department__c.search',
-            'customFields.region__c.search',
-            'customFields.tier__c.search',
-            'customFields.lead_source__c.search',
-            'customFields.notes__c.search',
-          ],
+          fields: [...SEARCHABLE_TEXT_FIELDS],
           type: 'best_fields',
         },
       });

@@ -12,6 +12,7 @@ import type {
 import { ContactEntity } from '../../infrastructure/persistence/typeorm/entity/contact.entity';
 import { FieldValueEntity } from '../../infrastructure/persistence/typeorm/entity/fieldValue.entity';
 import { FieldDefinitionEntity } from '../../infrastructure/persistence/typeorm/entity/fieldDefinition.entity';
+import { isCustomField } from '../../domain/customField/fieldType.vo';
 
 /**
  * Contact 검색 서비스
@@ -131,11 +132,11 @@ export class ContactSearchService {
     try {
       // 커스텀 필드 정렬이 필요한지 확인
       const customFieldSorts =
-        dto.sort?.filter((s) => s.field.endsWith('__c')) || [];
+        dto.sort?.filter((s) => isCustomField(s.field)) || [];
       const hasCustomFieldSort = customFieldSorts.length > 0;
 
       // 그루핑이 필요한지 확인
-      const needsGroupBy = dto.groupBy && dto.groupBy.endsWith('__c');
+      const needsGroupBy = dto.groupBy && isCustomField(dto.groupBy);
 
       let data: ContactResponse[];
       let total: number;
@@ -193,7 +194,7 @@ export class ContactSearchService {
     if (dto.filter && dto.filter.length > 0) {
       for (let i = 0; i < dto.filter.length; i++) {
         const filter = dto.filter[i];
-        if (filter.field.endsWith('__c')) {
+        if (isCustomField(filter.field)) {
           const subQuery: SelectQueryBuilder<FieldValueEntity> =
             queryRunner.manager
               .createQueryBuilder(FieldValueEntity, `fv${i}`)
@@ -224,7 +225,7 @@ export class ContactSearchService {
     // 정렬 (기본 필드만)
     if (dto.sort && dto.sort.length > 0) {
       for (const s of dto.sort) {
-        if (!s.field.endsWith('__c')) {
+        if (!isCustomField(s.field)) {
           qb = qb.addOrderBy(
             `c.${s.field}`,
             s.direction.toUpperCase() as 'ASC' | 'DESC',
@@ -304,7 +305,7 @@ export class ContactSearchService {
     if (dto.filter && dto.filter.length > 0) {
       for (let i = 0; i < dto.filter.length; i++) {
         const filter = dto.filter[i];
-        if (filter.field.endsWith('__c')) {
+        if (isCustomField(filter.field)) {
           const def = definitions.find((d) => d.apiName === filter.field);
           if (def) {
             if (filter.operator === 'eq') {
@@ -327,7 +328,7 @@ export class ContactSearchService {
     const orderByParts: string[] = [];
     if (dto.sort && dto.sort.length > 0) {
       for (const s of dto.sort) {
-        if (s.field.endsWith('__c')) {
+        if (isCustomField(s.field)) {
           orderByParts.push(`\`${s.field}\` ${s.direction.toUpperCase()}`);
         } else {
           orderByParts.push(`c.${s.field} ${s.direction.toUpperCase()}`);
@@ -408,7 +409,7 @@ export class ContactSearchService {
     // 그루핑 처리
     let groups: { key: string; count: number }[] | undefined;
     if (dto.groupBy) {
-      const groupByExpr = dto.groupBy.endsWith('__c')
+      const groupByExpr = isCustomField(dto.groupBy)
         ? `MAX(CASE WHEN fd.api_name = '${dto.groupBy}' THEN fv.value END)`
         : `c.${dto.groupBy}`;
       const groupSql = `

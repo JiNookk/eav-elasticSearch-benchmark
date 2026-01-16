@@ -1,6 +1,7 @@
 import { Inject, Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { Client } from '@elastic/elasticsearch';
 import { ELASTICSEARCH_CLIENT } from './elasticsearch.constants';
+import { isCustomField } from '../../domain/customField/fieldType.vo';
 
 const CONTACTS_INDEX = 'contacts';
 
@@ -245,7 +246,7 @@ export class ElasticsearchService implements OnModuleInit {
     // 필터 조건 (email, name은 이미 keyword 타입)
     if (filters) {
       for (const [field, value] of Object.entries(filters)) {
-        if (field.endsWith('__c')) {
+        if (isCustomField(field)) {
           // 커스텀 필드 필터
           filter.push({
             term: { [`customFields.${field}`]: value },
@@ -263,7 +264,7 @@ export class ElasticsearchService implements OnModuleInit {
     const sortArray: EsSortClause[] = [];
     if (sort) {
       for (const [field, order] of Object.entries(sort)) {
-        if (field.endsWith('__c')) {
+        if (isCustomField(field)) {
           sortArray.push({ [`customFields.${field}`]: order });
         } else {
           sortArray.push({ [field]: order });
@@ -333,7 +334,7 @@ export class ElasticsearchService implements OnModuleInit {
     // 필터 조건 (다양한 연산자 지원, email/name은 이미 keyword 타입)
     if (filterConditions) {
       for (const cond of filterConditions) {
-        const fieldPath = cond.field.endsWith('__c')
+        const fieldPath = cond.isCustomField(field)
           ? `customFields.${cond.field}`
           : cond.field;
 
@@ -375,7 +376,7 @@ export class ElasticsearchService implements OnModuleInit {
     const sortArray: EsSortClause[] = [];
     if (sort) {
       for (const [field, order] of Object.entries(sort)) {
-        if (field.endsWith('__c')) {
+        if (isCustomField(field)) {
           sortArray.push({ [`customFields.${field}`]: order });
         } else {
           sortArray.push({ [field]: order });
@@ -428,7 +429,7 @@ export class ElasticsearchService implements OnModuleInit {
     aggregationSize = 10,
   ): Promise<AggregationResult[]> {
     // 커스텀 필드는 이미 keyword 타입, 기본 필드는 .keyword 서브필드 사용
-    const fieldPath = field.endsWith('__c')
+    const fieldPath = isCustomField(field)
       ? `customFields.${field}`
       : `${field}.keyword`;
 

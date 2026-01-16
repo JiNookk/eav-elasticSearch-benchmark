@@ -213,8 +213,8 @@ export class ElasticsearchService implements OnModuleInit {
   async searchContacts(query: SearchQuery): Promise<SearchResult> {
     const { keyword, filters, sort, page = 1, size = 20 } = query;
 
-    const must: any[] = [];
-    const filter: any[] = [];
+    const must: EsMustClause[] = [];
+    const filter: EsFilterClause[] = [];
 
     // 키워드 검색 (.search 서브필드 사용 - ngram 분석기 적용)
     // 텍스트 검색 가능한 필드만 명시 (날짜/숫자 필드 제외)
@@ -255,7 +255,7 @@ export class ElasticsearchService implements OnModuleInit {
     }
 
     // 정렬: 검색어가 있으면 relevance(_score) 우선, 없으면 createdAt
-    const sortArray: any[] = [];
+    const sortArray: EsSortClause[] = [];
     if (sort) {
       for (const [field, order] of Object.entries(sort)) {
         if (field.endsWith('__c')) {
@@ -280,10 +280,10 @@ export class ElasticsearchService implements OnModuleInit {
       query: {
         bool: {
           must: must.length > 0 ? must : [{ match_all: {} }],
-          filter,
+          filter: filter.length > 0 ? filter : undefined,
         },
       },
-      sort: sortArray,
+      sort: sortArray as Record<string, unknown>[],
       from,
       size,
     });
@@ -311,8 +311,8 @@ export class ElasticsearchService implements OnModuleInit {
   ): Promise<SearchResult> {
     const { keyword, filterConditions, sort, page = 1, size = 20 } = query;
 
-    const must: any[] = [];
-    const filter: any[] = [];
+    const must: EsMustClause[] = [];
+    const filter: EsFilterClause[] = [];
 
     // 키워드 검색 (.search 서브필드 사용 - ngram 분석기 적용)
     // 텍스트 검색 가능한 필드만 명시 (날짜/숫자 필드 제외)
@@ -377,7 +377,7 @@ export class ElasticsearchService implements OnModuleInit {
     }
 
     // 정렬: 검색어가 있으면 relevance(_score) 우선, 없으면 createdAt
-    const sortArray: any[] = [];
+    const sortArray: EsSortClause[] = [];
     if (sort) {
       for (const [field, order] of Object.entries(sort)) {
         if (field.endsWith('__c')) {
@@ -402,10 +402,10 @@ export class ElasticsearchService implements OnModuleInit {
       query: {
         bool: {
           must: must.length > 0 ? must : [{ match_all: {} }],
-          filter,
+          filter: filter.length > 0 ? filter : undefined,
         },
       },
-      sort: sortArray,
+      sort: sortArray as Record<string, unknown>[],
       from,
       size,
     });
@@ -532,3 +532,29 @@ export interface AggregationResult {
   key: string;
   count: number;
 }
+
+// ============================================
+// Elasticsearch Query DSL Types
+// ============================================
+
+/**
+ * Bool 쿼리의 must 절에 들어갈 수 있는 쿼리 타입
+ */
+export type EsMustClause =
+  | { multi_match: { query: string; fields: string[]; type: string } }
+  | { match_all: Record<string, never> };
+
+/**
+ * Bool 쿼리의 filter 절에 들어갈 수 있는 쿼리 타입
+ */
+export type EsFilterClause =
+  | { term: Record<string, string | number> }
+  | { wildcard: Record<string, string> }
+  | { range: Record<string, { gt?: number | string; lt?: number | string; gte?: number | string; lte?: number | string }> };
+
+/**
+ * 정렬 조건 타입
+ */
+export type EsSortClause =
+  | { _score: 'asc' | 'desc' }
+  | Record<string, 'asc' | 'desc'>;

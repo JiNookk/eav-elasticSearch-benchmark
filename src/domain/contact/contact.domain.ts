@@ -196,4 +196,36 @@ export class Contact {
   get updatedAt(): Date {
     return this._updatedAt;
   }
+
+  /**
+   * ES 인덱싱/Queue용 plain object로 변환
+   */
+  toPayload(): ContactPayloadData {
+    const customFields: Record<string, string | number | Date | null> = {};
+
+    for (const fieldValue of this._customFieldValues.values()) {
+      customFields[fieldValue.fieldDefinition.apiName] = fieldValue.getValue();
+    }
+
+    return {
+      id: this._id,
+      email: this._email,
+      name: this._name,
+      customFields,
+      createdAt: this._createdAt,
+      updatedAt: this._updatedAt,
+    };
+  }
+}
+
+/**
+ * Contact의 plain object 표현
+ */
+export interface ContactPayloadData {
+  id: string;
+  email: string;
+  name: string;
+  customFields: Record<string, string | number | Date | null>;
+  createdAt: Date;
+  updatedAt: Date;
 }

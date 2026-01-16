@@ -19,7 +19,6 @@ import type { UpdateContactDto } from './dto/updateContact.dto';
 import {
   ES_SYNC_QUEUE,
   type EsSyncJobData,
-  type ContactPayload,
 } from '../../infrastructure/queue/es-sync.types';
 import { ContactEntity } from '../../infrastructure/persistence/typeorm/entity/contact.entity';
 import { FieldValueEntity } from '../../infrastructure/persistence/typeorm/entity/fieldValue.entity';
@@ -150,7 +149,7 @@ export class ContactService {
     contact: Contact,
     eventType: OutboxEventType,
   ): Promise<void> {
-    const payload = this.toPayload(contact);
+    const payload = contact.toPayload();
 
     await this.dataSource.transaction(async (manager) => {
       // Contact Entity 변환
@@ -203,11 +202,10 @@ export class ContactService {
     contact: Contact,
   ): Promise<void> {
     try {
-      const payload = this.toPayload(contact);
       await this.esSyncQueue.add('sync', {
         type,
         contactId: contact.id,
-        payload,
+        payload: contact.toPayload(),
         timestamp: new Date(),
       });
     } catch (err: unknown) {
@@ -264,25 +262,5 @@ export class ContactService {
         contact.setCustomFieldValue(definition, value, fieldValueId);
       }
     }
-  }
-
-  /**
-   * Contact -> Queue Payload 변환
-   */
-  private toPayload(contact: Contact): ContactPayload {
-    const customFields: Record<string, string | number | Date | null> = {};
-
-    for (const fieldValue of contact.customFieldValues) {
-      customFields[fieldValue.fieldDefinition.apiName] = fieldValue.getValue();
-    }
-
-    return {
-      id: contact.id,
-      email: contact.email,
-      name: contact.name,
-      customFields,
-      createdAt: contact.createdAt,
-      updatedAt: contact.updatedAt,
-    };
   }
 }

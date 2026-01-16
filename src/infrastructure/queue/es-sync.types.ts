@@ -1,3 +1,5 @@
+import { ContactPayloadData } from '../../domain/contact/contact.domain';
+
 /**
  * ES 동기화 이벤트 타입
  */
@@ -11,15 +13,11 @@ export type EsSyncEventType =
 export interface EsSyncJobData {
   type: EsSyncEventType;
   contactId: string;
-  payload?: ContactPayload;
+  payload?: ContactPayloadData;
   timestamp: Date;
 }
 
-export interface ContactPayload {
-  id: string;
-  email: string;
-  name: string;
-  customFields: Record<string, string | number | Date | null>;
-  createdAt: Date;
-  updatedAt: Date;
-}
+/**
+ * @deprecated ContactPayloadData를 직접 사용하세요
+ */
+export type ContactPayload = ContactPayloadData;

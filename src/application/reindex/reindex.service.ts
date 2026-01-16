@@ -6,9 +6,7 @@ import { CONTACT_REPOSITORY } from '../contact/port/contact.repository.port';
 import {
   ES_SYNC_QUEUE,
   type EsSyncJobData,
-  type ContactPayload,
 } from '../../infrastructure/queue/es-sync.types';
-import type { Contact } from '../../domain/contact/contact.domain';
 
 /**
  * 재인덱싱 서비스
@@ -42,7 +40,7 @@ export class ReindexService {
         {
           type: 'CONTACT_UPDATED',
           contactId: contact.id,
-          payload: this.toPayload(contact),
+          payload: contact.toPayload(),
           timestamp: new Date(),
         },
         {
@@ -68,7 +66,7 @@ export class ReindexService {
     await this.esSyncQueue.add('reindex', {
       type: 'CONTACT_UPDATED',
       contactId: contact.id,
-      payload: this.toPayload(contact),
+      payload: contact.toPayload(),
       timestamp: new Date(),
     });
 
@@ -92,22 +90,5 @@ export class ReindexService {
     ]);
 
     return { waiting, active, completed, failed };
-  }
-
-  private toPayload(contact: Contact): ContactPayload {
-    const customFields: Record<string, string | number | Date | null> = {};
-
-    for (const fieldValue of contact.customFieldValues) {
-      customFields[fieldValue.fieldDefinition.apiName] = fieldValue.getValue();
-    }
-
-    return {
-      id: contact.id,
-      email: contact.email,
-      name: contact.name,
-      customFields,
-      createdAt: contact.createdAt,
-      updatedAt: contact.updatedAt,
-    };
   }
 }
